@@ -21,20 +21,34 @@ Before starting, remind the user of these five principles:
 
 ```mermaid
 flowchart TD
-    A[Remind: What Makes a Good RFC] --> B[Gather problem context]
-    B --> C[Present title options\n3 suggestions + free text]
+    A[Remind: What Makes a Good RFC] --> AP{Auto-publish?}
+    AP -- md-to-confluence --> S[Run md-to-confluence Setup\nspace key + parent page]
+    S --> SF{Setup succeeded?}
+    SF -- yes --> B[Gather problem context]
+    SF -- failed --> FD{Retry or disable?}
+    FD -- retry --> S
+    FD -- disable --> B
+    AP -- no --> B
+    B --> C[Present title options 3 suggestions + free text]
     C --> D{User picks title?}
-    D -- yes --> E[Create RFC file with title + metadata]
     D -- regenerate --> C
-    E --> F[Walk through RFC sections]
+    D -- yes --> E[Create RFC file with title + metadata]
+    E --> F[Draft next section]
     F --> G{Section approved?}
     G -- revise --> F
     G -- approved --> H[Write section to RFC file]
-    H --> I{More sections?}
+    H --> P{Auto-publish enabled?}
+    P -- yes --> Q[Publish to Confluence via md-to-confluence]
+    Q --> QF{Publish succeeded?}
+    QF -- yes --> I{More sections?}
+    QF -- failed --> R[Report error briefly\ncontinue writing]
+    R --> I
+    P -- no --> I
     I -- yes --> F
-    I -- no --> J{User reviews final RFC?}
-    J -- changes needed --> F
-    J -- approved --> K[Done]
+    I -- no --> J[Final review of complete RFC]
+    J --> K{Changes needed?}
+    K -- yes, specific section --> F
+    K -- approved --> L[Done]
 ```
 
 ## Step-by-Step Instructions
@@ -43,7 +57,20 @@ flowchart TD
 
 Display the five principles above to the user. This sets expectations and primes them for the right level of detail.
 
-### Step 2: Gather Problem Context
+### Step 2: Auto-Publish Selection
+
+Ask the user if they want to auto-publish the RFC as they write it. Use **AskUserQuestion** with these options:
+
+- **Option 1: Publish to Confluence** — automatically publish to Confluence (via `md-to-confluence` skill) every time a section is written to the file
+- **Option 2: No auto-publish** — just write the RFC locally
+
+If the user selects Confluence:
+
+1. **Immediately run `md-to-confluence` Setup** — ask for space key, parent page, and verify MCP connectivity. Do this now, before gathering problem context, so publishing is seamless from the first section onward.
+2. **If setup fails** (auth error, bad space key, MCP not connected), ask the user whether to retry or continue without auto-publish. Don't block the RFC writing flow.
+3. Remember this choice for the rest of the flow. Subsequent publishes use Publish mode automatically (metadata is already in the file).
+
+### Step 3: Gather Problem Context
 
 Ask the user **one question at a time**:
 
@@ -52,7 +79,7 @@ Ask the user **one question at a time**:
 
 Keep it to 1-2 questions. Don't over-interview.
 
-### Step 3: Title Selection
+### Step 4: Title Selection
 
 Based on the problem context, use **AskUserQuestion** to present a menu:
 
@@ -63,7 +90,7 @@ Pick titles that are specific and scannable. Avoid generic titles like "Improve 
 
 **Once the user picks a title, create the RFC file** at `docs/rfcs/YYYY-MM-DD-<title-slug>.md` with the title and metadata (author, date, status: Draft). Sections will be appended as they are approved.
 
-### Step 4: Walk Through RFC Sections
+### Step 5: Walk Through RFC Sections
 
 Guide the user through each section **one at a time**. For each section:
 
@@ -72,6 +99,7 @@ Guide the user through each section **one at a time**. For each section:
 - Draft the section content based on their response
 - Ask if it looks right before moving on
 - **Once the user approves a section, immediately write it to the RFC file** — don't wait until the end to compile everything. This gives the user a progressively complete document they can review at any time
+- **If auto-publish is enabled**, invoke the `md-to-confluence` skill with the RFC file path after each section write. Since Setup was already completed in Step 2, all publishes use Publish mode (auto-detect existing metadata). If a publish fails, report the error briefly and continue to the next section — don't block the writing flow
 
 **RFC Structure (11 sections):**
 
@@ -89,7 +117,7 @@ Guide the user through each section **one at a time**. For each section:
 | 10  | **Rollout Plan**            | How will you ship it? Feature flags, migration steps, rollback strategy         |
 | 11  | **Open Questions**          | What's unresolved? What needs discussion? This is where reviewers focus         |
 
-### Step 5: Final Review
+### Step 6: Final Review
 
 Since each section was written to the file as it was approved, the RFC is already complete by this point.
 
