@@ -104,11 +104,17 @@ Use this mode to update an already-connected Confluence page.
 
 When another skill (like write-rfc) uses this skill as a publisher:
 
-1. The calling skill invokes `md-to-confluence` with the file path
-2. On **first invocation**: this skill runs Setup (checks MCP, asks space/parent, creates page, stores metadata)
-3. On **subsequent invocations**: this skill runs Publish only (detects existing metadata via `<!-- confluence-page-id:`)
+1. The calling skill invokes `md-to-confluence` in **Setup mode first** — before any content is written. This collects space key, parent page, verifies MCP, and creates the initial Confluence page. The calling skill should handle setup failure (retry or disable auto-publish).
+2. The calling skill then invokes `md-to-confluence` in **Publish mode** after each content update. This skill auto-detects existing metadata via `<!-- confluence-page-id:` and updates the page.
 
-The calling skill doesn't need to track state — this skill auto-detects whether setup has been done by checking for confluence metadata in the file.
+The calling skill doesn't need to track state — this skill auto-detects whether setup has been done by checking for confluence metadata in the file. If setup was done upfront, all subsequent calls go straight to Publish mode.
+
+### Error handling for integrations
+
+When invoked by another skill, publish failures should **not block the calling skill's flow**. This skill should:
+- Report the error briefly (one line)
+- Return control to the calling skill immediately
+- Let the calling skill decide whether to retry, disable auto-publish, or continue
 
 ## Important
 
